@@ -434,6 +434,9 @@ class GitGraphView {
 					case 'fetch':
 						this.fetchFromRemotesAction();
 						break;
+					case 'refresh':
+						this.refresh(true, true);
+						break;
 				}
 			}
 		}

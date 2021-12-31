@@ -56,6 +56,8 @@ export class CommandManager extends Disposable {
 		this.registerCommand('git-graph.resumeWorkspaceCodeReview', () => this.resumeWorkspaceCodeReview());
 		this.registerCommand('git-graph.version', () => this.version());
 		this.registerCommand('git-graph.openFile', (arg) => this.openFile(arg));
+		this.registerCommand('git-graph.refresh', () => this.refresh());
+
 
 		this.registerDisposable(
 			onDidChangeGitExecutable((gitExecutable) => {
@@ -233,6 +235,51 @@ export class CommandManager extends Disposable {
 			GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, {
 				repo: repoPaths[0],
 				runCommandOnLoad: 'fetch'
+			});
+		} else {
+			GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, null);
+		}
+	}
+
+	/**
+	 * The method run when the `git-graph.fetch` command is invoked.
+	 */
+	 private refresh() {
+		const repos = this.repoManager.getRepos();
+		const repoPaths = getSortedRepositoryPaths(repos, getConfig().repoDropdownOrder);
+
+		if (repoPaths.length > 1) {
+			const items: vscode.QuickPickItem[] = repoPaths.map((path) => ({
+				label: repos[path].name || getRepoName(path),
+				description: path
+			}));
+
+			const lastActiveRepo = this.extensionState.getLastActiveRepo();
+			if (lastActiveRepo !== null) {
+				let lastActiveRepoIndex = items.findIndex((item) => item.description === lastActiveRepo);
+				if (lastActiveRepoIndex > -1) {
+					const item = items.splice(lastActiveRepoIndex, 1)[0];
+					items.unshift(item);
+				}
+			}
+
+			vscode.window.showQuickPick(items, {
+				placeHolder: 'Select the repository you want to open in Git Graph, and refresh:',
+				canPickMany: false
+			}).then((item) => {
+				if (item && item.description) {
+					GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, {
+						repo: item.description,
+						runCommandOnLoad: 'refresh'
+					});
+				}
+			}, () => {
+				showErrorMessage('An unexpected error occurred while running the command "Refresh".');
+			});
+		} else if (repoPaths.length === 1) {
+			GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, {
+				repo: repoPaths[0],
+				runCommandOnLoad: 'refresh'
 			});
 		} else {
 			GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, null);
